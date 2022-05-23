@@ -1,14 +1,15 @@
----
-title: "Introduction to identifying viral sequences in bulk metagenomic data"
-author: "David B. Stern, Ph.D."
----
+# Introduction to identifying viral sequences in bulk metagenomic data"
 
+author: "David B. Stern, Ph.D."
 [Bioinformatics and Computational Biosciences Branch](https://bioinformatics.niaid.nih.gov/)
+
+Navigation links
+* [Setting up the working directory]()
 
 
 ## Learning Objectives:
 
-* Highlight Locus resources for viral metagenomic analyses
+* Highlight LOCUS resources for viral metagenomic analyses
 * Discuss approaches and bioinformatic tools for viral sequence identification in metagenomic assemblies
 * Implement a simplified workflow to identify phage sequences in metagenomic data including:
     * Classification of metagenomic contigs as viral / non-viral
@@ -19,28 +20,26 @@ author: "David B. Stern, Ph.D."
 Much of this workflow was adapted from the [Sullivan Lab](https://u.osu.edu/viruslab/) [SOP](https://www.protocols.io/view/viral-sequence-identification-sop-with-virsorter2-5qpvoyqebg4o/v3?version_warning=no)
 
 
-#### Pipelines
-VirusSeeker, PAIPline, LAZYPIPE, ViroMatch, VIP, virMine
-
-# checkv db: checkv-db-v1.0
-#checkv download_database .
-# DRAMv: db-dramv
-#DRAM-setup.py prepare_databases --skip_uniref --output_dir db-dramv
-
 ## Start interactive session and set up working directory
 
 [Link to temporary account information](https://nih-my.sharepoint.com/:x:/g/personal/sterndb_nih_gov/EcAbW7ESV9JOsFFtR1Q9fJsBiwMBSiqjJgAdd4A9aYKNSQ?e=hxL0rq&wdLOR=c7C88D67F-EBFA-E94B-9009-9C8DA514C2FB)
+
+First, we will connect to LOCUS and start an interactive compute session. It is import not to run code on the submit nodes. All computation should be run through batch or interactive jobs (https://locus.niaid.nih.gov/userportal/documentation.php#Getting-Started/HPC-Basics)
 
 ```bash
 ssh <username>@ai-submit1.niaid.nih.gov
 qrsh -pe threaded 8 -l h_vmem=2G
 ```
 
-The workflow is designed to take place after metagenome assembly (as in Metagenomics I). For this tutorial, we are using a very small subset (5 sequences) that were output from the previous session (i.e. sample 6 from the CAMI dataset)
+The workflow is designed to take place after metagenome assembly (as in the Metagenomics I webinar). For this tutorial, we are using a very small subset (5 sequences) that was output from the previous session (i.e. sample 6 from the CAMI dataset).
 
-Copy data to working directory
+Let's copy the data to a working directory
 
 ```bash
+#create working directory
+mkdir viral_metagenomics_training
+cd viral_metagenomics_training
+
 # if using training account ->
     cp /classhome/classroom/test.fa .
 # if using personal account
@@ -49,23 +48,21 @@ Copy data to working directory
 
 Take a quick look at the data
 
-
 ```bash
 less test.fa
 ```
 
 ## Run VirSorter2
-[](figs/virsorter2_fig1.png)
+![](figs/virsorter2_fig1.png)
 
 [VirSorter](https://microbiomejournal.biomedcentral.com/articles/10.1186/s40168-020-00990-y) is a multi-classifier method that uses genomic features to assign sequences a 'viralness' score. This applied both to the whole sequence and to sliding windows to identify partial viral sequences (e.g. proviruses). Importantly, different random-forest classifiers were trained for five different groups of viruses with different genomic characteristics, biology, evolutionary origins, etc. (dsDNA phages, NCLDV, RNA, ssDNA, Laviviruses)
 
 ### Three steps performed automatically:  
 1. Preprocess sequences and identify circular contigs
 2. Extract features from input sequences
-    - CDS identification with Prodigal (ref) and annotated with HMMER3 against Pfam and custom viral database
-        - Manually annotated "viral hallmark genes"
+    - CDS identification with [Prodigal](https://bmcbioinformatics.biomedcentral.com/articles/10.1186/1471-2105-11-119) and annotated with [HMMER3](http://hmmer.org/) against [Pfam](https://pfam.xfam.org/) and custom viral database
+        - Manually annotated "viral hallmark genes" specific to each viral group, e.g. major capsid protein (MCP) and terminase large subunit for Caudovirales
         - Genes assigned to virus, bacteria, archaea, eukaryotes, mixed
-    - Circular sequences
     - Gene size, density, and overlapping frequency
     - Strand switching frequency
     - Start codon usage
@@ -93,11 +90,15 @@ Flags:
 - `-i test.fa`: specify name and path to input file  
 - `-w vs2-pass1`: specify name and path to output directory  
 - `--keep-original-seq`: partial viral sequences are not trimmed from the whole contig. Instead we will use CheckV to remove cellular sequence and identify proviruses.
-- `--min-score 0.5`: VirSorter2 suggests that a score above 0.9 is strong evidence that the sequence is viral. However, we will be using a low cutoff to capture more sequences of putative viral origin and use checkV to collect additional information.
-
+- `--include-groups dsDNAphage,ssDNA`: specify which classifiers to use. It is recommended to only specify the groups of your particular interest, if possible, to avoid false positives.
+- `min-length 1000`: remove sequences shorter than 1000 bp
+- `--min-score 0.5`: VirSorter2 suggests that a score above 0.9 is strong evidence that the sequence is viral. However, we will be using a low cutoff to capture more sequences of putative viral origin and use CheckV to collect additional information.
+- `-j 8`: maximum number of jobs to allow in parallel
+- `all`: run all three steps. Alternatively, one could run just the `classify` step if the previous steps had already been run, and one wished to adjust filtering options.
 
 This produces several output files in vs2-pass1 directory:
 - final-viral-score.tsv: contig information and scores
+View with: `column -t vs2-pass1/final-viral-score.tsv`
 
   > This table can be used for further screening of results. It includes the following columns:
   >   - sequence name
@@ -110,6 +111,7 @@ This produces several output files in vs2-pass1 directory:
   >   - nonviral gene %
 
 - final-viral-combined.fa: all viral sequences in fasta format
+View the first 2 lines with: `head -2 vs2-pass1/final-viral-combined.fa`
 
   > identified viral sequences, including three types:
   > - full sequences identified as viral (identified with suffix `||full`);
@@ -117,6 +119,7 @@ This produces several output files in vs2-pass1 directory:
   > - short (less than two genes) sequences with hallmark genes identified as viral (identified with suffix `||lt2gene`);
 
 - final-viral-boundary.tsv: table with ORF coordinates and information
+View with: `column -t vs2-pass1/final-viral-boundary.tsv`
 
  > only some of the columns in this file might be useful:
   >   - seqname: original sequence name
