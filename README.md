@@ -1,6 +1,6 @@
 # Introduction to identifying viral sequences in bulk metagenomic data"
 
-author: "David B. Stern, Ph.D."
+author: "David B. Stern, Ph.D."  
 [Bioinformatics and Computational Biosciences Branch](https://bioinformatics.niaid.nih.gov/)
 
 Navigation links
@@ -72,7 +72,7 @@ less test.fa
     - Random forest classifiers trained on high-quality reference genomes
     - Aggregate scores into a single prediction
 
-VirSorter2 is a written as a SnakeMake workflow, and each step of the workflow is printed to the screen when running.
+VirSorter2 is a written as a [SnakeMake](https://snakemake.readthedocs.io/en/stable/) workflow, and each step of the workflow is printed to the screen when running.
 
 The main command is `virsorter run` and has several options that can be viewed by typing `virsorter run -h`
 
@@ -84,10 +84,12 @@ module load virsorter/2.2.3-Python-3.8.10
 
 virsorter run -i test.fa -w vs2-pass1 --keep-original-seq --include-groups dsDNAphage,ssDNA --min-length 1000 --min-score 0.5 -j 8 all
 
+module unload virsorter/2.2.3-Python-3.8.10
+
 ```
 
 Flags:
-- `-i test.fa`: specify name and path to input file  
+- `-i test.fa`: specify name and path to input file (metagenome assembly)
 - `-w vs2-pass1`: specify name and path to output directory  
 - `--keep-original-seq`: partial viral sequences are not trimmed from the whole contig. Instead we will use CheckV to remove cellular sequence and identify proviruses.
 - `--include-groups dsDNAphage,ssDNA`: specify which classifiers to use. It is recommended to only specify the groups of your particular interest, if possible, to avoid false positives.
@@ -100,7 +102,7 @@ This produces several output files in vs2-pass1 directory:
 - final-viral-score.tsv: contig information and scores
 View with: `column -t vs2-pass1/final-viral-score.tsv`
 
-  > This table can be used for further screening of results. It includes the following columns:
+This table can be used for further screening of results. It includes the following columns:
   >   - sequence name
   >   - score of each viral sequences across groups (multiple columns)
   >   - max score across groups
@@ -112,14 +114,12 @@ View with: `column -t vs2-pass1/final-viral-score.tsv`
 
 - final-viral-combined.fa: all viral sequences in fasta format
 View the first 2 lines with: `head -2 vs2-pass1/final-viral-combined.fa`
-
-  > identified viral sequences, including three types:
+Identified viral sequences, including three types:
   > - full sequences identified as viral (identified with suffix `||full`);
   > - partial sequences identified as viral (identified with suffix `||{i}_partial`); here `{i}` can be numbers starting from 0 to max number of viral fragments found in that contig;
   > - short (less than two genes) sequences with hallmark genes identified as viral (identified with suffix `||lt2gene`);
 
 - final-viral-boundary.tsv: table with ORF coordinates and information
-View with: `column -t vs2-pass1/final-viral-boundary.tsv`
 
  > only some of the columns in this file might be useful:
   >   - seqname: original sequence name
@@ -134,33 +134,76 @@ View with: `column -t vs2-pass1/final-viral-boundary.tsv`
 Sequence names are appended with `||full` or `{i}_partial`. `||full` means that the entire contig has strong viral signal, while `{i}_partial` sequences have some viral and some cellular signal.
 
 
-# run checkv to qc virsorter results and trim host regions left at the end of proviruses
-**insert checkv figure**
+## CheckV
+Assess quality and completeness of viral sequences identified with VirSorter2 and trim host regions left at the end of proviruses
 
-CheckV estimates completeness of viral genomes assembled from metagenomic data and also removes host (bacterial) contamination. Alternative methods include VIBRANT (ref.) which assesses completeness based on viral hallmark genes and viralComplete (ref.) which compares sequence length to related sequences in NCBI RefSeq.
+![](figs/checkv_fig.png)
 
-For completeness, CheckV uses two methods
+[CheckV](https://www.nature.com/articles/s41587-020-00774-7) estimates completeness of viral genomes assembled from metagenomic data and also removes host (microbial) contamination. Alternative methods include [VIBRANT](https://microbiomejournal.biomedcentral.com/articles/10.1186/s40168-020-00867-0) which assesses completeness based on viral hallmark genes and [viralComplete](https://academic.oup.com/bioinformatics/article/36/14/4126/5837667) which compares sequence length to related sequences in NCBI RefSeq.
 
-```bash
-module load checkv/0.8.1
-```
-CheckV has several modules, each with their own set of options that can be viewed with `checkv -h`. CheckV is a pipeline that consists of several steps
-
+CheckV has several modules, each with their own set of options that can be viewed with `checkv -h`. CheckV is a pipeline that consists of several modules:
+- Identify and remove host contamination
+    - Annotates genes as viral or microbial based on comparison to large database of HMMs
+    - Compares genes in adjacent windows to identify viral-host boundaries as large shift in gene content or nucleotide composition
+- Estimate completeness for genome fragments
+    - Estimates expected genome length based on average amino-acid identity (AAI) to database of viral genomes from NCBI
+    - With novel, high-diverged viruses uses HMM method
+        - Contig length is compared to that of reference genomes that are annotated by the same viral HMMs
+        - Reports range of completeness values
+- Predict closed genomes based on terminal repeats and flanking host regions
+- Classify into quality tiers based on completeness
 
 Running `checkv end_to_end` will run the entire pipeline of estimating completeness, contamination, and identify closed genomes.
 
-
+Flags for `checkv end_to_end`:
+- `vs2-pass1/final-viral-combined.fa`: specify path to input file (putative viral sequences)
+- `checkv`: path to output directory
+- `-t 8`: Number of threads to use for Prodigal and DIAMOND
+- `-d /hpcdata/bio_data/checkv/checkv-db-v1.0`: path to reference databases
 
 ```bash
-checkv end_to_end vs2-pass1/final-viral-combined.fa checkv -t 16 -d /hpcdata/bio_data/checkv/checkv-db-v1.0
+module load checkv/0.8.1
+# The reference database is already downloaded and configured on Locus here: /hpcdata/bio_data/checkv/checkv-db-v1.0/
+# If it were not, the command to download and configure the database is:
+# checkv download_database
+
+checkv end_to_end vs2-pass1/final-viral-combined.fa checkv -t 8 -d /hpcdata/bio_data/checkv/checkv-db-v1.0
 
 # concatenate viral sequences extracted from mostly bacterial sequence (proviruses) and contigs that are mostly viral
 cat checkv/proviruses.fna checkv/viruses.fna > checkv/combined.fna
 
-module unload checkv
+module unload checkv/0.8.1
 ```
-Let's take a look at the main results in `less checkv/quality_summary.tsv`.
 
+This produces several output files in the checkv directory:
+
+* quality_summary.tsv
+View with `column -t checkv/quality_summary.tsv`
+This contains integrated results from the three main modules and should be the main output referred to.
+
+> - contig length
+> - whether or not the viral sequence is called a provirus
+> - length of the proviral sequence
+> - total number of genes identified
+> - number of viral genes
+> - number of host genes
+> - CheckV quality tier
+> - MIUVIG quality tier
+> - estimated completeness
+> - method used to estimate completeness
+> - percent of contig estimated to be of non-viral origin
+> - kmer-freq (number of times the viral genome is found in the contig)
+
+* completeness.tsv
+A detailed overview of how completeness was estimated
+
+* contamination.tsv
+A detailed overview of how contamination was estimated.
+
+* complete_genomes.tsv
+A detailed overview of putative complete genomes identified.
+
+Additional information about these files can be found [here](https://bitbucket.org/berkeleylab/checkv)
 
 ## Let's run DRAMv annotate the sequences and help filter some false-positive
 **insert dramv figure**
