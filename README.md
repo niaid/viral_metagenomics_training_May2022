@@ -1,4 +1,4 @@
-# Introduction to identifying viral sequences in bulk metagenomic data"
+# Introduction to identifying viral sequences in bulk metagenomic data
 
 author: "David B. Stern, Ph.D."  
 [Bioinformatics and Computational Biosciences Branch](https://bioinformatics.niaid.nih.gov/)
@@ -177,6 +177,12 @@ module unload checkv/0.8.1
 
 This produces several output files in the checkv directory:
 
+* viruses.fna
+Contigs that are mostly viral
+* proviruses.fna  
+Viral sequences extracted from contigs that are mostly microbial
+
+
 * quality_summary.tsv
 View with `column -t checkv/quality_summary.tsv`
 This contains integrated results from the three main modules and should be the main output referred to.
@@ -194,52 +200,134 @@ This contains integrated results from the three main modules and should be the m
 > - percent of contig estimated to be of non-viral origin
 > - kmer-freq (number of times the viral genome is found in the contig)
 
-* completeness.tsv
+* completeness.tsv  
 A detailed overview of how completeness was estimated
 
-* contamination.tsv
+* contamination.tsv  
 A detailed overview of how contamination was estimated.
 
-* complete_genomes.tsv
+* complete_genomes.tsv  
 A detailed overview of putative complete genomes identified.
 
-Additional information about these files can be found [here](https://bitbucket.org/berkeleylab/checkv)
+Additional information about these files can be found in the [CheckV code repository](https://bitbucket.org/berkeleylab/checkv)
 
-## Let's run DRAMv annotate the sequences and help filter some false-positive
-**insert dramv figure**
+## Run DRAMv
+Perform gene annotation and help filter some false-positive
 
-DRAM is a annotation tool for bacterial and viral (DRAM-v) sequences. It
+![](figs/dramv_fig_1b.png)
 
+[DRAM](https://academic.oup.com/nar/article/48/16/8883/5884738) is a gene annotation tool for bacterial and viral (DRAM-v) genomes. It is quite useful for our purposes for several reasons:
+1. Searches predicted genes against multiple databases for functional information, including some virus-specific
+    * Pfam, KEGG, Uniprot, dbCAN, CAZY, MEROPS, VOGDB, NCBI Viral refseq
+2. Distills and summarizes annotations into functional pathways
+3. Identifies auxiliary metabolic genes (AMGs)
+    * Uses VirSorter2 output to help confirm viral origin of metabolic genes
+
+
+First, we need to run VirSorter2 again on the CheckV output to generate the input files for DRAM-v.
 
 ```bash
 module load dram/1.3.4-Python-3.10.4
-#python -m pip install click
-time virsorter run --seqname-suffix-off --viral-gene-enrich-off --provirus-off \
-        --prep-for-dramv -i checkv/combined.fna \
-        -w vs2-pass2 --include-groups dsDNAphage,ssDNA --min-length 1000 --min-score 0.5 -j 16 all
+module load virsorter/2.2.3-Python-3.8.10
 
-DRAM-setup.py print_config
+virsorter run --seqname-suffix-off --viral-gene-enrich-off --provirus-off --prep-for-dramv -i checkv/combined.fna -w vs2-pass2 --include-groups dsDNAphage,ssDNA --min-length 1000 --min-score 0.5 -j 8 all
+
 ```
+
 **no need to run `DRAM-v.py annotate` now, it will take too long**
-We can copy a pre-prepared output `cp xxx`
+
+Instead let's look at the command options, and work with some pre-computed output.
 
 ```bash
-# run DRAMv to annotate identified sequences
-# step 1 annotate
-DRAM-v.py annotate -i vs2-pass2/for-dramv/final-viral-combined-for-dramv.fa \
-                    -v vs2-pass2/for-dramv/viral-affi-contigs-for-dramv.tab \
-                    -o dramv-annotate --skip_trnascan --threads 16 --min_contig_size 1000
-## took 21m..
-#step 2 summarize anntotations
-DRAM-v.py distill -i dramv-annotate/annotations.tsv -o dramv-distill
-# took 4s
+# The reference databases are already downloaded and configured on Locus here: /hpcdata/bio_data/DRAM/DRAM_data/
+# If it were not, the command to download and configure the database is:
+# DRAM-setup.py prepare_databases --skip_uniref --output_dir <path/to/directory>
+
+DRAM-v.py -h
+DRAM-v.py annotate -h
 ```
 
-# Compile and filter results
-Now we have output from virsorter2, checkv, and dramv. Let's combine these results into a single table using R and filter to
-a set of high-confidence viral sequences.
+Flags for `DRAM-v.py annotate`:
+- `-i vs2-pass2/for-dramv/final-viral-combined-for-dramv.fa`: specify path to input file (formatted file of viral sequences)
+- `-v vs2-pass2/for-dramv/viral-affi-contigs-for-dramv.tab`: VirSorter VIRSorter_affi-contigs.tab output file
+- `-o dramv-annotate`: path to output directory
+- `--skip_trnascan`: skip search for transfer RNA sequences to save time
+- `--min_contig_size 1000`: minimum size of contig to analyze
 
-This could be run locally in RStudio. For now, we can run R in Locus in the terminal.
+```bash
+# command to run dramv annotate
+## does not need to be run --> too slow
+#DRAM-v.py annotate -i vs2-pass2/for-dramv/final-viral-combined-for-dramv.fa \
+#                    -v vs2-pass2/for-dramv/viral-affi-contigs-for-dramv.tab \
+#                    -o dramv-annotate --skip_trnascan --threads 8 --min_contig_size 1000
+
+# instead copy precomputed output file
+# if using training account
+    cp -r /classhome/classroom/dramv-annotate .
+# if using personal locus account
+    cp -r /hpcdata/scratch/viral_metagenomics_training/dramv-annotate .
+```
+
+Output files in the dramv-annotate directory:
+
+* annotations.tsv  
+Tab separated file (.tsv) with all the annotations from Pfam, KEGG, UniProt, dbCAN, MEROPS, VOGDB, and a manually curated AMG database for all genes in all the input viral contigs. The final column contains the following annotation flags:
+    *	(V) – viral, has VOGDB identifier
+    *	(M) – metabolism, has metabolism identifier from the “Distillate”
+    *	(K) – known AMG, annotated from the literature as AMG
+    *	(E) – experimentally verified, similar to (K) but has been experimentally verified in previous study
+        *	K and E are based on curated database of 257 and 12 genes, respectively
+    *	(A) – attachment, associated with viral host attachment and entry
+    *	(P) - peptidase
+    *	(F) – near the end of the contig, within 5000bp of the end of a contig because less gene content to verify AMG
+    *	(T) – transposon, may be non-viral genetic element
+    *	(B) – 3 or more metabolic genes in a row indicating potentially non-viral stretch
+
+
+* genbank/final-viral-combined-for-dramv.gbk  
+Single GenBank file of annotations across viral contigs
+
+* genes.gff  
+Single gene-finding format (.gff) file of all annotations across viral contigs
+
+* genes.fna  
+Single fasta format file (.fna) of each open reading frame nucleotide sequence and best ranked annotation
+
+* genes.faa
+Single fasta format file (.faa) of each translated open reading frame amino acid sequence and best ranked annotation
+
+
+Next, we can run `DRAM-v.py distill` to summarize pathway and AMG information
+
+Key flags for DRAM-v.py distill:
+- `-i dramv-annotate/annotations.tsv`: annotation input file from DRAM-v.py annotate
+- `-o dramv-distill`: path to output directory
+- `--max_auxiliary_score 3`: Metabolic genes are given a score designed to help determine whether the gene is truly encoded in a viral genome. This is based on surrounding genes and whether they are viral hallmark genes, viral-like, etc.
+
+
+```bash
+# run dramv distill
+DRAM-v.py distill -i dramv-annotate/annotations.tsv -o dramv-distill --max_auxiliary_score 3
+
+module unload dram/1.3.4-Python-3.10.4
+module unload virsorter/2.2.3-Python-3.8.10
+```
+
+Output files:
+* vMAG_stats.tsv
+Contains summarized annotation information about each viral contig  
+
+* amg_summary.tsv
+Summary of AMGs from all input viral contigs
+
+* product.html
+Interactive heatmap summarizing AMG content across viral contigs. Our dataset was too small for this plot to be generated, but an example looks like this:
+![](figs/dramv_fig3.png)
+
+## Compile and filter results
+Now we have output from VirSorter2, CheckV, and DRAM-v. Let's combine these results into a single table using R and filter to a set of high-confidence viral sequences.
+
+Specifically, we will filter sequences based on the presence of viral + host genes, virsorter2 score, and 'suspicious genes', i.e. genes that are often found in viral and microbial genomes. These criteria come from the [Sullivan Lab](https://u.osu.edu/viruslab/) [SOP](https://www.protocols.io/view/viral-sequence-identification-sop-with-virsorter2-5qpvoyqebg4o/v3?version_warning=no).
 
 ```bash
 module load R/4.1.0  
@@ -247,44 +335,41 @@ R
 ```
 
 ```R
-library(dplyr)
-library(stringi)
-library(stringr)
-#` read in data
-vs2_res <- read.delim("vs2-pass1/final-viral-score.tsv",h=T)
+ if (!require("dplyr", quietly = TRUE))
+     install.packages("dplyr")
+ if (!require("stringi", quietly = TRUE))
+     install.packages("stringi")
+ if (!require("stringr", quietly = TRUE))
+     install.packages("stringr")
+ library(dplyr)
+ library(stringi)
+ library(stringr)
 
-checkv_res <- read.delim("checkv/quality_summary.tsv",h=T)
-colnames(checkv_res)[1] <- "seqname"
+ #` read in data
+ vs2_res <- read.delim("vs2-pass1/final-viral-score.tsv",h=T)
 
-dramv_vMAG_stats <- read.delim("dramv-distill/vMAG_stats.tsv",h=T)
-dramv_vMAG_stats$seqname <- dramv_vMAG_stats$X %>%
-                    str_replace('-.+','') %>%
-                    str_replace('full_\\d','full') %>%
-                    str_replace('partial_\\d','partial') %>%
-                    stri_replace_last_fixed('__','||')
+ checkv_res <- read.delim("checkv/quality_summary.tsv",h=T)
+ colnames(checkv_res)[1] <- "seqname"
 
-#` merge tables
-res_tmp <- merge(vs2_res,checkv_res,by="seqname")
-res <- dramv_vMAG_stats %>%
-        select(seqname,potential.AMG.count,Viral.genes.with.host.benefits) %>%
-        merge(res_tmp,by="seqname")
-```
+ dramv_vMAG_stats <- read.delim("dramv-distill/vMAG_stats.tsv",h=T)
+ dramv_vMAG_stats$seqname <- dramv_vMAG_stats$X %>%
+                     str_replace('-.+','') %>%
+                     str_replace('full_\\d','full') %>%
+                     str_replace('partial_\\d','partial') %>%
+                     stri_replace_last_fixed('__','||')
 
+ #` merge tables
+ res_tmp <- merge(vs2_res,checkv_res,by="seqname")
+ res <- dramv_vMAG_stats %>%
+         select(seqname,potential.AMG.count,Viral.genes.with.host.benefits) %>%
+         merge(res_tmp,by="seqname")
 
-```R
 #` filter by criteria suggested by Sullivan lab
 keep1 <- res %>%
         filter(viral_genes > 0)
 keep2 <- res %>%
         filter(viral_genes == 0 & (host_genes == 0 | max_score > 0.95 | hallmark > 2))
 
-
-```
-
-Some genes are common in both viruses and hosts, and can cause false positives in the Keep2 category. We can screen the DRAMv results for those suspicious genes and then check those sequences manually.
-
-
-```R
 dramv_annotations <- read.delim("dramv-annotate/annotations.tsv",h=T)
 
 suspicious_genes <- c('carbohydrate kinase',
@@ -312,7 +397,7 @@ sus_contigs <- unique(to_rm$scaffold) %>%
     stri_replace_last_fixed("__","||") %>%
     str_replace("-cat.*","")
 
-#` filter the keep2 list
+#` filter the keep2 list for suspicious genes
 keep2_good <- filter(keep2, !seqname %in% sus_contigs)
 
 final <- rbind(keep1,keep2_good)
@@ -320,78 +405,96 @@ final <- rbind(keep1,keep2_good)
 write.table(final, 'good_viral_contigs.txt',quote=F,row.names=F,sep='\t')
 ```
 
+
 Let's collect the viral sequences in fasta format
+
 ```bash
-module load bbmap
+module load bbmap/38.90
 
 cut -d $'\t' -f 1 good_viral_contigs.txt > keep_seqlist.txt
 
 filterbyname.sh in=checkv/combined.fna out=good_viral_contigs.fa include=t substring=name names=keep_seqlist.txt
 ```
 
+Our final high-confidence viral sequences are now in `good_viral_contigs.fa`.
 
-## Blast some of these
 
-## Assigning taxonomy
-Viruses do no have a single, universal marker gene (like 16S, ITS, COI) that can be used for phylogenetic or similarity-based taxonomic assignment (although group specific markers do exist, e.g. RDP for RNA viruses)
-Bacteriophage taxonomy is xxx. Recent papers have proposed several new groups and classification systems, e.g.:
-1.
-2.
-3.
+## Assigning taxonomy with vConTACT2
 
-Two recent methods for assigning viral genomes to taxonomic groups are:
-1. vConTACT is xxx
-2. GRAViTy
+Viruses do no have a single, universal marker gene (like 16S, ITS, COI) that can be used for phylogenetic or similarity-based taxonomic assignment (although group-specific markers do exist, e.g. RDP for RNA viruses).
 
-vConTACT is available on Locus, but takes a long time to run and process the output. For reference, one can load the module with `module load xxx`
 
-GRAViTy
+[vConTACT2](https://www.nature.com/articles/s41587-019-0100-8) is clusters viral genomes into taxonomy-informative groups based on the idea that related viruses share more genes.
+![](figs/vcontact_fig1a.png)
 
-## VConTACT2
+MCL is used to cluster protein sequences based on Diamond-based hit scores, and then ClusterONE is used for hierarchical clustering of viral genomes.
 
-Predict genes using prodigal
+Each cluster gets two types of scores
+1. Topology-based score which aggregates information about network topological properties
+2. Taxonomy-based score which estimates the likelihood of predicted VC to be equivalent to a single ICTV genus
+    * Used to automatically optimize the hierarchical clustering into ICTV-concordant ‘sub-clusters’
+
+Ideally, we would include in our analysis additional reference databases in which we could 'place' our viral sequences. For simplicity, we will use the default reference database within vConTACT2.
+
+
+First, we need to create the gene-to-genome mapping file for input to vConTACT2. We can use some of the output from `DRAMv.py annotate`.
+
 ```bash
-module load prodigal/2.6.3
 module load vcontact2/0.9.19-Python-3.7.10
+module load clusterone/1.0
 
-prodigal -p meta -i good_viral_contigs.fa -a good_viral_contigs.prodigal_out.fa -o good_viral_contigs.prodigal_out.txt
-grep '>' good_viral_contigs.prodigal_out.fa > good_viral_contigs.prodigal_names.txt
-
-sed 's/>//g' good_viral_contigs.prodigal_names.txt | \
-awk -F' ' '{print $1 "," $1 "REF," $9}' - | \
-sed 's/_[0-9]\+REF/REF/g' > g2g.tmp.csv
-
-echo 'protein_id,contig_id,keywords' | cat - g2g.tmp.csv > g2g.csv
-
-awk -F '\t' '{print $1 "," $3 "," $25}' dramv-annotate/annotations.tsv | tail -n +2 - > g2g.dramv.tmp.csv
-echo 'protein_id,contig_id,keywords' | cat - g2g.dramv.tmp.csv > g2g.dramv.csv  
+# create gene-to-genome mapping file
+awk -F '\t' '{print $1 "," $3 "," $25}' dramv-annotate/annotations.tsv | tail -n +2 - > g2g.tmp.csv
+echo 'protein_id,contig_id,keywords' | cat - g2g.tmp.csv > g2g.csv  
 ```
 
-Ideally, we would also combine our sequences with additional reference sequences with associated taxonomy, as the vConTACT reference library is somewhat limited.
+**no need to run `vcontact2` now, it will take too long**
 
-vConTACT takes a long time to run, even on a small dataset. Here is the command to run it, but no need to do that now.
+Key flags for running `vcontact2`:
+- `--raw-proteins dramv-annotate/genes.faa`: path to protein sequences file, here generated with Prodigal within DRAM-v
+- `--rel-mode 'Diamond'`: use Diamond to generate similarity scores between protein sequences
+- `--proteins-fp g2g.dramv.csv`: gene to genome mapping file
+- `--db 'ProkaryoticViralRefSeq201-Merged'`: name of reference database
+- `--pcs-mode MCL --vcs-mode ClusterONE`: use MCL for protein clustering and ClusterONE for viral genome clustering
+- `--c1-bin /sysapps/cluster/software/clusterone/1.0/cluster_one-1.0.jar`: path to the ClusterONE software
+- `--output-dir vcontact_out`: path to the output directory
+
+vConTACT2 has many options. See additional detail in the [code repository](https://bitbucket.org/MAVERICLab/vcontact2/wiki/Home).
 
 ```bash
-time vcontact2 --raw-proteins good_viral_contigs.prodigal_out.fa \
-            --rel-mode 'Diamond' \
-            --proteins-fp g2g.csv \
-            --db 'ProkaryoticViralRefSeq201-Merged' \
-            --pcs-mode MCL --vcs-mode MCL \
-            --output-dir vcontact_out
+# command to run vcontact2
+# no need to run because very slow
 
-vcontact2 --raw-proteins good_viral_contigs.prodigal_out.fa \
-            --rel-mode 'Diamond' \
-            --proteins-fp g2g.csv \
-            --db 'ProkaryoticViralRefSeq201-Merged' \
-            --pcs-mode MCL --vcs-mode ClusterONE --c1-bin ~/local/bin/cluster_one-1.0.jar \
-            --output-dir vcontact_out
+#vcontact2 --raw-proteins dramv-annotate/genes.faa \
+#            --rel-mode 'Diamond' \
+#            --proteins-fp g2g.dramv.csv \
+#            --db 'ProkaryoticViralRefSeq201-Merged' \
+#            --pcs-mode MCL --vcs-mode ClusterONE \
+#            --c1-bin /sysapps/cluster/software/clusterone/1.0/cluster_one-1.0.jar \
+#            --output-dir vcontact_out
 
-vcontact2 --raw-proteins dramv-annotate/genes.faa \
-            --rel-mode 'Diamond' \
-            --proteins-fp g2g.dramv.csv \
-            --db 'ProkaryoticViralRefSeq201-Merged' \
-            --pcs-mode MCL --vcs-mode ClusterONE --c1-bin ~/local/bin/cluster_one-1.0.jar \
-            --output-dir vcontact_out_dram
+# instead copy precomputed output file
+# if using training account
+    cp -r /classhome/classroom/vcontact_out .
+# if using personal locus account
+    cp -r /hpcdata/scratch/viral_metagenomics_training/vcontact_out .
 ```
 
-Let's take a look at the output. Two files are informative:
+Two main output files in the `vcontact_out` directory are informative:
+* genome_by_genome_overview.csv
+Contains all the taxonomic information for **reference genomes**, as well as all the clustering information (initial VC (VC_22), refined VC (VC_22_1)), confidence metrics, and misc scores.
+
+The authors of vConTACT2 suggest that if your quer sequence is in the same subcluster as a reference sequence, then it is likely in the same genus. If it is in the same VC, but not the same subcluster, as a reference, then it is likely related at a genus-subfamily level.  
+
+* viral_cluster_overview.csv
+Information about each viral cluster
+
+Let's find the putative taxonomic assignments for our sequences.
+
+```bash
+# find the subclusters to which our genomes were assigned  
+grep 'NODE' vcontact_out/genome_by_genome_overview.csv #cluster VC_233_0
+# find the taxonomic information about the cluster
+grep 'VC_233_0' vcontact_out/viral_cluster_overview.csv
+grep 'VC_233_0' vcontact_out/genome_by_genome_overview.csv
+```
