@@ -1,6 +1,6 @@
 # Introduction to identifying viral sequences in bulk metagenomic data
 
--- David B. Stern, Ph.D. --
+-- David B. Stern, Ph.D. --  
 [Bioinformatics and Computational Biosciences Branch](https://bioinformatics.niaid.nih.gov/)
 
 Navigation links
@@ -46,7 +46,7 @@ cd viral_metagenomics_training
 
 # if using training account ->
     cp /classhome/classroom/test.fa .
-# if using personal account
+# if using personal account ->
     cp /hpcdata/scratch/viral_metagenomics_training/test.fa .
 ```
 
@@ -60,7 +60,7 @@ less test.fa
 ![](figs/virsorter2_fig1.png)
 > Guo, J., Bolduc, B., Zayed, A.A. et al. VirSorter2: a multi-classifier, expert-guided approach to detect diverse DNA and RNA viruses. Microbiome 9, 37 (2021). https://doi.org/10.1186/s40168-020-00990-y
 
-[VirSorter](https://microbiomejournal.biomedcentral.com/articles/10.1186/s40168-020-00990-y) is a multi-classifier method that uses genomic features to assign sequences a 'viralness' score. This applied both to the whole sequence and to sliding windows to identify partial viral sequences (e.g. proviruses). Importantly, different random-forest classifiers were trained for five different groups of viruses with different genomic characteristics, biology, evolutionary origins, etc. (dsDNA phages, NCLDV, RNA, ssDNA, Laviviruses)
+[VirSorter](https://microbiomejournal.biomedcentral.com/articles/10.1186/s40168-020-00990-y) is a multi-classifier method that uses genomic features to assign sequences a 'viralness' score. This is applied both to the whole sequence and to sliding windows to identify partial viral sequences (e.g. proviruses). Importantly, different random-forest classifiers were trained for five different groups of viruses with different genomic characteristics, biology, evolutionary origins, etc. (dsDNA phages, NCLDV, RNA, ssDNA, Laviviruses)
 
 Three steps are performed automatically:  
 1. Preprocess sequences and identify circular contigs
@@ -98,68 +98,66 @@ Flags:
 - `-w vs2-pass1`: specify name and path to output directory  
 - `--keep-original-seq`: partial viral sequences are not trimmed from the whole contig. Instead we will use CheckV to remove cellular sequence and identify proviruses.
 - `--include-groups dsDNAphage,ssDNA`: specify which classifiers to use. It is recommended to only specify the groups of your particular interest, if possible, to avoid false positives.
-- `min-length 1000`: remove sequences shorter than 1000 bp
+- `--min-length 1000`: remove sequences shorter than 1000 bp
 - `--min-score 0.5`: VirSorter2 suggests that a score above 0.9 is strong evidence that the sequence is viral. However, we will be using a low cutoff to capture more sequences of putative viral origin and use CheckV to collect additional information.
 - `-j 8`: maximum number of jobs to allow in parallel
 - `all`: run all three steps. Alternatively, one could run just the `classify` step if the previous steps had already been run, and one wished to adjust filtering options.
 
 This produces several output files in vs2-pass1 directory:
-- final-viral-score.tsv: contig information and scores
+- final-viral-score.tsv: contig information and scores  
 View with: `column -t vs2-pass1/final-viral-score.tsv`
 
-This table can be used for further screening of results. It includes the following columns:
-  >   - sequence name
-  >   - score of each viral sequences across groups (multiple columns)
-  >   - max score across groups
-  >   - max score group
-  >   - contig length
-  >   - hallmark gene count
-  >   - viral gene %
-  >   - nonviral gene %
+This table can be used for further screening of results. It includes the following columns:  
+>   - sequence name
+>   - score of each viral sequences across groups (multiple columns)
+>   - max score across groups
+>   - max score group
+>   - contig length
+>   - hallmark gene count
+>   - viral gene %
+>   - nonviral gene %
 
-- final-viral-combined.fa: all viral sequences in fasta format
-View the first 2 lines with: `head -2 vs2-pass1/final-viral-combined.fa`
+- final-viral-combined.fa: all viral sequences in fasta format  
+View the first 2 lines with: `head -2 vs2-pass1/final-viral-combined.fa`  
 Identified viral sequences, including three types:
-  > - full sequences identified as viral (identified with suffix `||full`);
-  > - partial sequences identified as viral (identified with suffix `||{i}_partial`); here `{i}` can be numbers starting from 0 to max number of viral fragments found in that contig;
-  > - short (less than two genes) sequences with hallmark genes identified as viral (identified with suffix `||lt2gene`);
+>   - full sequences identified as viral (identified with suffix `||full`);
+>   - partial sequences identified as viral (identified with suffix `||{i}_partial`); here `{i}` can be numbers starting from 0 to max number of viral fragments found in that contig;
+>   - short (less than two genes) sequences with hallmark genes identified as viral (identified with suffix `||lt2gene`);
 
 - final-viral-boundary.tsv: table with ORF coordinates and information
-
- > only some of the columns in this file might be useful:
-  >   - seqname: original sequence name
-  >   - trim\_orf\_index\_start, trim\_orf\_index\_end:  start and end ORF index on orignal sequence of identified viral sequence
-  >   - trim\_bp\_start, trim\_bp\_end:  start and end position on orignal sequence of identified viral sequence
-  >   - trim\_pr: score of final trimmed viral sequence
-  >   - partial:  full sequence as viral or partial sequence as viral; this is defined when a full sequence has score > score cutoff, it is full (0), or else any viral sequence extracted within it is partial (1)
-  >   - pr\_full:  score of the original sequence
-  >   - hallmark\_cnt:  hallmark gene count
-  >   - group: the classifier of viral group that gives high score; this should **NOT** be used as reliable classification
+>   - seqname: original sequence name
+>   - trim\_orf\_index\_start, trim\_orf\_index\_end:  start and end ORF index on orignal sequence of identified viral sequence
+>   - trim\_bp\_start, trim\_bp\_end:  start and end position on orignal sequence of identified viral sequence
+>   - trim\_pr: score of final trimmed viral sequence
+>   - partial:  full sequence as viral or partial sequence as viral; this is defined when a full sequence has score > score cutoff, it is full (0), or else any viral sequence extracted within it is partial (1)
+>   - pr\_full:  score of the original sequence
+>   - hallmark\_cnt:  hallmark gene count
+>   - group: the classifier of viral group that gives high score; this should **NOT** be used as reliable classification
 
 Sequence names are appended with `||full` or `{i}_partial`. `||full` means that the entire contig has strong viral signal, while `{i}_partial` sequences have some viral and some cellular signal.
 
 
 ## CheckV
-Assess quality and completeness of viral sequences identified with VirSorter2 and trim host regions left at the end of proviruses
+Assess quality and completeness of viral sequences identified with VirSorter2 and trim host regions left at the end of proviruses.
 
 ![](figs/checkv_fig.png)
 > Nayfach, S., Camargo, A.P., Schulz, F. et al. CheckV assesses the quality and completeness of metagenome-assembled viral genomes. Nat Biotechnol 39, 578–585 (2021). https://doi.org/10.1038/s41587-020-00774-7
 
 [CheckV](https://www.nature.com/articles/s41587-020-00774-7) estimates completeness of viral genomes assembled from metagenomic data and also removes host (microbial) contamination. Alternative methods include [VIBRANT](https://microbiomejournal.biomedcentral.com/articles/10.1186/s40168-020-00867-0) which assesses completeness based on viral hallmark genes and [viralComplete](https://academic.oup.com/bioinformatics/article/36/14/4126/5837667) which compares sequence length to related sequences in NCBI RefSeq.
 
-CheckV has several modules, each with their own set of options that can be viewed with `checkv -h`. CheckV is a pipeline that consists of several modules:
+CheckV has several modules, each with their own set of options that can be viewed with `checkv -h`.
 - Identify and remove host contamination
     - Annotates genes as viral or microbial based on comparison to large database of HMMs
     - Compares genes in adjacent windows to identify viral-host boundaries as large shift in gene content or nucleotide composition
 - Estimate completeness for genome fragments
     - Estimates expected genome length based on average amino-acid identity (AAI) to database of viral genomes from NCBI
-    - With novel, high-diverged viruses uses HMM method
+    - With novel viruses (not in database) uses HMM method
         - Contig length is compared to that of reference genomes that are annotated by the same viral HMMs
         - Reports range of completeness values
 - Predict closed genomes based on terminal repeats and flanking host regions
 - Classify into quality tiers based on completeness
 
-Running `checkv end_to_end` will run the entire pipeline of estimating completeness, contamination, and identify closed genomes.
+Running `checkv end_to_end` will run the entire pipeline.
 
 Flags for `checkv end_to_end`:
 - `vs2-pass1/final-viral-combined.fa`: specify path to input file (putative viral sequences)
@@ -183,14 +181,14 @@ module unload checkv/0.8.1
 
 This produces several output files in the checkv directory:
 
-* viruses.fna
+* viruses.fna  
 Contigs that are mostly viral
 * proviruses.fna  
 Viral sequences extracted from contigs that are mostly microbial
 
 
-* quality_summary.tsv
-View with `column -t checkv/quality_summary.tsv`
+* quality_summary.tsv  
+View with `column -t checkv/quality_summary.tsv`  
 This contains integrated results from the three main modules and should be the main output referred to.
 
 > - contig length
@@ -218,7 +216,7 @@ A detailed overview of putative complete genomes identified.
 Additional information about these files can be found in the [CheckV code repository](https://bitbucket.org/berkeleylab/checkv)
 
 ## Run DRAMv
-Perform gene annotation and help filter some false-positive
+Perform gene annotation and help filter some false positives.
 
 ![](figs/dramv_fig_1b.png)
 > Michael Shaffer, Mikayla A Borton, Bridget B McGivern, Ahmed A Zayed, Sabina Leanti La Rosa, Lindsey M Solden, Pengfei Liu, Adrienne B Narrowe, Josué Rodríguez-Ramos, Benjamin Bolduc, M Consuelo Gazitúa, Rebecca A Daly, Garrett J Smith, Dean R Vik, Phil B Pope, Matthew B Sullivan, Simon Roux, Kelly C Wrighton, DRAM for distilling microbial metabolism to automate the curation of microbiome function, Nucleic Acids Research, Volume 48, Issue 16, 18 September 2020, Pages 8883–8900, https://doi.org/10.1093/nar/gkaa621
@@ -280,13 +278,13 @@ Output files in the dramv-annotate directory:
 * annotations.tsv  
 Tab separated file (.tsv) with all the annotations from Pfam, KEGG, UniProt, dbCAN, MEROPS, VOGDB, and a manually curated AMG database for all genes in all the input viral contigs. The final column contains the following annotation flags:
     *	(V) – viral, has VOGDB identifier
-    *	(M) – metabolism, has metabolism identifier from the “Distillate”
+    *	(M) – metabolism, has metabolism identifier
     *	(K) – known AMG, annotated from the literature as AMG
     *	(E) – experimentally verified, similar to (K) but has been experimentally verified in previous study
         *	K and E are based on curated database of 257 and 12 genes, respectively
     *	(A) – attachment, associated with viral host attachment and entry
     *	(P) - peptidase
-    *	(F) – near the end of the contig, within 5000bp of the end of a contig because less gene content to verify AMG
+    *	(F) – near the end of the contig, within 5000bp of the end of a contig. Less gene content to verify AMG
     *	(T) – transposon, may be non-viral genetic element
     *	(B) – 3 or more metabolic genes in a row indicating potentially non-viral stretch
 
@@ -300,7 +298,7 @@ Single gene-finding format (.gff) file of all annotations across viral contigs
 * genes.fna  
 Single fasta format file (.fna) of each open reading frame nucleotide sequence and best ranked annotation
 
-* genes.faa
+* genes.faa  
 Single fasta format file (.faa) of each translated open reading frame amino acid sequence and best ranked annotation
 
 
@@ -352,22 +350,22 @@ R
  library(stringi)
  library(stringr)
 
- #` read in data
- vs2_res <- read.delim("vs2-pass1/final-viral-score.tsv",h=T)
+#` read in data
+vs2_res <- read.delim("vs2-pass1/final-viral-score.tsv",h=T)
 
- checkv_res <- read.delim("checkv/quality_summary.tsv",h=T)
- colnames(checkv_res)[1] <- "seqname"
+checkv_res <- read.delim("checkv/quality_summary.tsv",h=T)
+colnames(checkv_res)[1] <- "seqname"
 
- dramv_vMAG_stats <- read.delim("dramv-distill/vMAG_stats.tsv",h=T)
- dramv_vMAG_stats$seqname <- dramv_vMAG_stats$X %>%
+dramv_vMAG_stats <- read.delim("dramv-distill/vMAG_stats.tsv",h=T)
+dramv_vMAG_stats$seqname <- dramv_vMAG_stats$X %>%
                      str_replace('-.+','') %>%
                      str_replace('full_\\d','full') %>%
                      str_replace('partial_\\d','partial') %>%
                      stri_replace_last_fixed('__','||')
 
- #` merge tables
- res_tmp <- merge(vs2_res,checkv_res,by="seqname")
- res <- dramv_vMAG_stats %>%
+#` merge tables
+res_tmp <- merge(vs2_res,checkv_res,by="seqname")
+res <- dramv_vMAG_stats %>%
          select(seqname,potential.AMG.count,Viral.genes.with.host.benefits) %>%
          merge(res_tmp,by="seqname")
 
@@ -410,6 +408,9 @@ keep2_good <- filter(keep2, !seqname %in% sus_contigs)
 final <- rbind(keep1,keep2_good)
 
 write.table(final, 'good_viral_contigs.txt',quote=F,row.names=F,sep='\t')
+
+#` exit R
+quit()
 ```
 
 
@@ -491,7 +492,7 @@ Two main output files in the `vcontact_out` directory are informative:
 * genome_by_genome_overview.csv
 Contains all the taxonomic information for **reference genomes**, as well as all the clustering information (initial VC (VC_22), refined VC (VC_22_1)), confidence metrics, and misc scores.
 
-The authors of vConTACT2 suggest that if your quer sequence is in the same subcluster as a reference sequence, then it is likely in the same genus. If it is in the same VC, but not the same subcluster, as a reference, then it is likely related at a genus-subfamily level.  
+The authors of vConTACT2 suggest that if your query sequence is in the same subcluster as a reference sequence, then it is likely in the same genus. If it is in the same VC, but not the same subcluster, as a reference, then it is likely related at a genus-subfamily level.  
 
 * viral_cluster_overview.csv
 Information about each viral cluster
