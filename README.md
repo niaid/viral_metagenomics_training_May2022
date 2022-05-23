@@ -1,11 +1,15 @@
 # Introduction to identifying viral sequences in bulk metagenomic data
 
-author: "David B. Stern, Ph.D."  
+-- David B. Stern, Ph.D. --
 [Bioinformatics and Computational Biosciences Branch](https://bioinformatics.niaid.nih.gov/)
 
 Navigation links
-* [Setting up the working directory]()
-
+* [Setting up the working directory](https://github.com/niaid/viral_metagenomics_training_May2022#start-interactive-session-and-set-up-working-directory)
+* [run VirSorter2 to classify sequences as viral](https://github.com/niaid/viral_metagenomics_training_May2022#run-virsorter2)
+* [run CheckV to assess quality](https://github.com/niaid/viral_metagenomics_training_May2022#checkv)
+* [run DRAM-v for gene annotation](https://github.com/niaid/viral_metagenomics_training_May2022#run-dramv)
+* [Compile and filter results](https://github.com/niaid/viral_metagenomics_training_May2022#compile-and-filter-results)
+* [run vConTACT2 to assign taxonomy](https://github.com/niaid/viral_metagenomics_training_May2022#assigning-taxonomy-with-vcontact2)
 
 ## Learning Objectives:
 
@@ -54,10 +58,11 @@ less test.fa
 
 ## Run VirSorter2
 ![](figs/virsorter2_fig1.png)
+> Guo, J., Bolduc, B., Zayed, A.A. et al. VirSorter2: a multi-classifier, expert-guided approach to detect diverse DNA and RNA viruses. Microbiome 9, 37 (2021). https://doi.org/10.1186/s40168-020-00990-y
 
 [VirSorter](https://microbiomejournal.biomedcentral.com/articles/10.1186/s40168-020-00990-y) is a multi-classifier method that uses genomic features to assign sequences a 'viralness' score. This applied both to the whole sequence and to sliding windows to identify partial viral sequences (e.g. proviruses). Importantly, different random-forest classifiers were trained for five different groups of viruses with different genomic characteristics, biology, evolutionary origins, etc. (dsDNA phages, NCLDV, RNA, ssDNA, Laviviruses)
 
-### Three steps performed automatically:  
+Three steps are performed automatically:  
 1. Preprocess sequences and identify circular contigs
 2. Extract features from input sequences
     - CDS identification with [Prodigal](https://bmcbioinformatics.biomedcentral.com/articles/10.1186/1471-2105-11-119) and annotated with [HMMER3](http://hmmer.org/) against [Pfam](https://pfam.xfam.org/) and custom viral database
@@ -138,6 +143,7 @@ Sequence names are appended with `||full` or `{i}_partial`. `||full` means that 
 Assess quality and completeness of viral sequences identified with VirSorter2 and trim host regions left at the end of proviruses
 
 ![](figs/checkv_fig.png)
+> Nayfach, S., Camargo, A.P., Schulz, F. et al. CheckV assesses the quality and completeness of metagenome-assembled viral genomes. Nat Biotechnol 39, 578–585 (2021). https://doi.org/10.1038/s41587-020-00774-7
 
 [CheckV](https://www.nature.com/articles/s41587-020-00774-7) estimates completeness of viral genomes assembled from metagenomic data and also removes host (microbial) contamination. Alternative methods include [VIBRANT](https://microbiomejournal.biomedcentral.com/articles/10.1186/s40168-020-00867-0) which assesses completeness based on viral hallmark genes and [viralComplete](https://academic.oup.com/bioinformatics/article/36/14/4126/5837667) which compares sequence length to related sequences in NCBI RefSeq.
 
@@ -215,6 +221,7 @@ Additional information about these files can be found in the [CheckV code reposi
 Perform gene annotation and help filter some false-positive
 
 ![](figs/dramv_fig_1b.png)
+> Michael Shaffer, Mikayla A Borton, Bridget B McGivern, Ahmed A Zayed, Sabina Leanti La Rosa, Lindsey M Solden, Pengfei Liu, Adrienne B Narrowe, Josué Rodríguez-Ramos, Benjamin Bolduc, M Consuelo Gazitúa, Rebecca A Daly, Garrett J Smith, Dean R Vik, Phil B Pope, Matthew B Sullivan, Simon Roux, Kelly C Wrighton, DRAM for distilling microbial metabolism to automate the curation of microbiome function, Nucleic Acids Research, Volume 48, Issue 16, 18 September 2020, Pages 8883–8900, https://doi.org/10.1093/nar/gkaa621
 
 [DRAM](https://academic.oup.com/nar/article/48/16/8883/5884738) is a gene annotation tool for bacterial and viral (DRAM-v) genomes. It is quite useful for our purposes for several reasons:
 1. Searches predicted genes against multiple databases for functional information, including some virus-specific
@@ -423,9 +430,9 @@ Our final high-confidence viral sequences are now in `good_viral_contigs.fa`.
 
 Viruses do no have a single, universal marker gene (like 16S, ITS, COI) that can be used for phylogenetic or similarity-based taxonomic assignment (although group-specific markers do exist, e.g. RDP for RNA viruses).
 
-
-[vConTACT2](https://www.nature.com/articles/s41587-019-0100-8) is clusters viral genomes into taxonomy-informative groups based on the idea that related viruses share more genes.
+[vConTACT2](https://www.nature.com/articles/s41587-019-0100-8) clusters viral genomes into taxonomy-informative groups based on the idea that related viruses share more genes.
 ![](figs/vcontact_fig1a.png)
+> Bin Jang, H., Bolduc, B., Zablocki, O. et al. Taxonomic assignment of uncultivated prokaryotic virus genomes is enabled by gene-sharing networks. Nat Biotechnol 37, 632–639 (2019). https://doi.org/10.1038/s41587-019-0100-8
 
 MCL is used to cluster protein sequences based on Diamond-based hit scores, and then ClusterONE is used for hierarchical clustering of viral genomes.
 
