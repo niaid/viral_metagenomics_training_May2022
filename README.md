@@ -126,8 +126,8 @@ Identified viral sequences, including three types:
 
 - final-viral-boundary.tsv: table with ORF coordinates and information
 >   - seqname: original sequence name
->   - trim\_orf\_index\_start, trim\_orf\_index\_end:  start and end ORF index on orignal sequence of identified viral sequence
->   - trim\_bp\_start, trim\_bp\_end:  start and end position on orignal sequence of identified viral sequence
+>   - trim\_orf\_index\_start, trim\_orf\_index\_end:  start and end ORF index on original sequence of identified viral sequence
+>   - trim\_bp\_start, trim\_bp\_end:  start and end position on original sequence of identified viral sequence
 >   - trim\_pr: score of final trimmed viral sequence
 >   - partial:  full sequence as viral or partial sequence as viral; this is defined when a full sequence has score > score cutoff, it is full (0), or else any viral sequence extracted within it is partial (1)
 >   - pr\_full:  score of the original sequence
