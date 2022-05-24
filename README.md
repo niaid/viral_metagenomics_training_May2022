@@ -374,6 +374,9 @@ res <- dramv_vMAG_stats %>%
          select(seqname,potential.AMG.count,Viral.genes.with.host.benefits) %>%
          merge(res_tmp,by="seqname")
 
+#` view combined table
+res
+
 #` filter by criteria suggested by Sullivan lab
 keep1 <- res %>%
         filter(viral_genes > 0)
