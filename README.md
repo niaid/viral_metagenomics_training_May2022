@@ -191,7 +191,9 @@ Viral sequences extracted from contigs that are mostly microbial
 
 
 * quality_summary.tsv  
-View with `column -t checkv/quality_summary.tsv`  
+View first 5 columns with `cut -f 1-5 checkv/quality_summary.tsv | column -t`  
+View next 5 columns with `cut -f 6-10 checkv/quality_summary.tsv | column -t`  
+
 This contains integrated results from the three main modules and should be the main output referred to.
 
 > - contig length
