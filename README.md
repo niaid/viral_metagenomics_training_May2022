@@ -99,7 +99,7 @@ Flags:
 - `--keep-original-seq`: partial viral sequences are not trimmed from the whole contig. Instead we will use CheckV to remove cellular sequence and identify proviruses.
 - `--include-groups dsDNAphage,ssDNA`: specify which classifiers to use. It is recommended to only specify the groups of your particular interest, if possible, to avoid false positives.
 - `--min-length 1000`: remove sequences shorter than 1000 bp
-- `--min-score 0.5`: VirSorter2 suggests that a score above 0.9 is strong evidence that the sequence is viral. However, we will be using a low cutoff to capture more sequences of putative viral origin and use CheckV to collect additional information.
+- `--min-score 0.5`: VirSorter2 suggests that a score above 0.9 is strong evidence that the sequence is viral. However, we will be using a low cutoff to capture more sequences of putative viral origin and use CheckV to do additional filtering.
 - `-j 8`: maximum number of jobs to allow in parallel
 - `all`: run all three steps. Alternatively, one could run just the `classify` step if the previous steps had already been run, and one wished to adjust filtering options.
 
