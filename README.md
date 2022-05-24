@@ -11,7 +11,7 @@ Navigation links
 * [Compile and filter results](https://github.com/niaid/viral_metagenomics_training_May2022#compile-and-filter-results)
 * [run vConTACT2 to assign taxonomy](https://github.com/niaid/viral_metagenomics_training_May2022#assigning-taxonomy-with-vcontact2)
 
-## Learning Objectives:
+## Today's goals:
 
 * Highlight LOCUS resources for viral metagenomic analyses
 * Discuss approaches and bioinformatic tools for viral sequence identification in metagenomic assemblies
@@ -64,7 +64,7 @@ less test.fa
 
 Three steps are performed automatically:  
 1. Preprocess sequences and identify circular contigs
-2. Extract features from input sequences
+2. Extract features (27 total) from input sequences
     - CDS identification with [Prodigal](https://bmcbioinformatics.biomedcentral.com/articles/10.1186/1471-2105-11-119) and annotated with [HMMER3](http://hmmer.org/) against [Pfam](https://pfam.xfam.org/) and custom viral database
         - Manually annotated "viral hallmark genes" specific to each viral group, e.g. major capsid protein (MCP) and terminase large subunit for Caudovirales
         - Genes assigned to virus, bacteria, archaea, eukaryotes, mixed
