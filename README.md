@@ -145,6 +145,13 @@ Assess quality and completeness of viral sequences identified with VirSorter2 an
 
 [CheckV](https://www.nature.com/articles/s41587-020-00774-7) estimates completeness of viral genomes assembled from metagenomic data and also removes host (microbial) contamination. Alternative methods include [VIBRANT](https://microbiomejournal.biomedcentral.com/articles/10.1186/s40168-020-00867-0) which assesses completeness based on viral hallmark genes and [viralComplete](https://academic.oup.com/bioinformatics/article/36/14/4126/5837667) which compares sequence length to related sequences in NCBI RefSeq.
 
+```bash
+module load checkv/0.8.1
+# The reference database is already downloaded and configured on Locus here: /hpcdata/bio_data/checkv/checkv-db-v1.0/
+# If it were not, the command to download and configure the database is:
+# checkv download_database
+```
+
 CheckV has several modules, each with their own set of options that can be viewed with `checkv -h`.
 - Identify and remove host contamination
     - Annotates genes as viral or microbial based on comparison to large database of HMMs
@@ -165,12 +172,8 @@ Flags for `checkv end_to_end`:
 - `-t 8`: Number of threads to use for Prodigal and DIAMOND
 - `-d /hpcdata/bio_data/checkv/checkv-db-v1.0`: path to reference databases
 
-```bash
-module load checkv/0.8.1
-# The reference database is already downloaded and configured on Locus here: /hpcdata/bio_data/checkv/checkv-db-v1.0/
-# If it were not, the command to download and configure the database is:
-# checkv download_database
 
+```bash
 checkv end_to_end vs2-pass1/final-viral-combined.fa checkv -t 8 -d /hpcdata/bio_data/checkv/checkv-db-v1.0
 
 # concatenate viral sequences extracted from mostly bacterial sequence (proviruses) and contigs that are mostly viral
