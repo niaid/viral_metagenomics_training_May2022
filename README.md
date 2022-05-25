@@ -21,7 +21,7 @@ Navigation links
     * Gene annotation
     * Taxonomic classification (if time allows)
 
-**Much of this workflow was adapted from the [Sullivan Lab](https://u.osu.edu/viruslab/) [SOP](https://www.protocols.io/view/viral-sequence-identification-sop-with-virsorter2-5qpvoyqebg4o/v3?version_warning=no)**
+**Much of this workflow was adapted from the** [Sullivan Lab](https://u.osu.edu/viruslab/) [SOP](https://www.protocols.io/view/viral-sequence-identification-sop-with-virsorter2-5qpvoyqebg4o/v3?version_warning=no)
 
 
 ## Start interactive session and set up working directory
