@@ -60,7 +60,7 @@ less test.fa
 ![](figs/virsorter2_fig1.png)
 > Guo, J., Bolduc, B., Zayed, A.A. et al. VirSorter2: a multi-classifier, expert-guided approach to detect diverse DNA and RNA viruses. Microbiome 9, 37 (2021). https://doi.org/10.1186/s40168-020-00990-y
 
-[VirSorter](https://microbiomejournal.biomedcentral.com/articles/10.1186/s40168-020-00990-y) is a multi-classifier method that uses genomic features to assign sequences a 'viralness' score. This is applied both to the whole sequence and to sliding windows to identify partial viral sequences (e.g. proviruses). Importantly, different random-forest classifiers were trained for five different groups of viruses with different genomic characteristics, biology, evolutionary origins, etc. (dsDNA phages, NCLDV, RNA, ssDNA, Laviviruses)
+[VirSorter](https://microbiomejournal.biomedcentral.com/articles/10.1186/s40168-020-00990-y) is a multi-classifier method that uses genomic features to assign sequences a 'viralness' score. This is applied both to the whole sequence and to sliding windows to identify partial viral sequences (e.g. proviruses). Importantly, different random-forest classifiers were trained for five different groups of viruses with different genomic characteristics, biology, evolutionary origins, etc. (dsDNA phages, NCLDV, RNA, ssDNA, *Lavidaviridae*(virophages))
 
 Three steps are performed automatically:  
 1. Preprocess sequences and identify circular contigs
